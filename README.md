@@ -1,0 +1,8 @@
+- Working labyrinth -- OK
+- Make the lights higher so they can be seen from the distance when jumping.
+- When user gets to the end, game restarts with a new labyrinth
+- Use seeded random numbers to ensuere everything works as levels
+- Put the level number in the wall at the begining
+- Give unique URLs to each level
+- Generate the written instructions for each level authomatically
+- Make the instructions the SEO content for each URL
