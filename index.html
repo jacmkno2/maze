@@ -82,7 +82,7 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
                 this.renderer.shadowMap.enabled = true;
                 document.body.appendChild(this.renderer.domElement);
 
-                const light = new THREE.DirectionalLight(0xffffff, 1);
+                const light = new THREE.DirectionalLight(0xffffff, 0);
                 light.position.set(50, 100, 50);
                 light.castShadow = true;
                 this.scene.add(light);
@@ -305,9 +305,9 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
                 this.createWalls();
                 this.createFloor();
                 this.orbs = [
-                    [this.getStartPosition(), 0xFF0000], 
-                    ...this.getEndPositions().map(p=>[p, 0x00FF00])
-                ].map(([p, color])=>this.createOrb(p, color));
+                    [this.getStartPosition(), 0xFF0000, 1], 
+                    ...this.getEndPositions().map(p=>[p, 0x00FF00, 1])
+                ].map(([p, color, height])=>this.createOrb(p, color, height));
                 
                 if(this.game.player){
                     this.game.player.resetPosition();
@@ -320,26 +320,40 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
                 })                
             }
 
-            createOrb(pos, color) {
+            createOrb(pos, color, height = 0) {
                 const orbGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-                const orbMaterial = new THREE.MeshBasicMaterial({ color: color });
+                const orbMaterial = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5});
                 const orb = new THREE.Mesh(orbGeometry, orbMaterial);
 
                 // Set orb position based on the cell's column and row
-                orb.position.set(pos.x, Config.WALL_HEIGHT / 2, pos.z);
+                orb.position.set(pos.x, Config.WALL_HEIGHT / 2 + height * Config.WALL_HEIGHT, pos.z);
 
                 // Create and position the light source at the same place as the orb
                 const light = new THREE.PointLight(orbMaterial.color, 1, Config.CELL_SIZE * 2);
+                light.castShadow = true;
                 orb.add(light);
-                                
+
+                // Add a glow effect (halo) around the orb using a sprite
+                const spriteMaterial = new THREE.SpriteMaterial({
+                    map: new THREE.TextureLoader().load('flare.webp'),
+                    transparent: true,
+                    opacity: 0.5,
+                    alphaTest: 0.1,                    
+                });
+                const glow = new THREE.Sprite(spriteMaterial);
+                glow.scale.set(5, 5, 1); // Adjust the size of the glow
+                orb.add(glow);  // Attach the glow to the orb
+                
                 // Store initial data for later use if necessary
                 orb.userData = {
                     initialY: orb.position.y,
-                    light: light
+                    light: light,
                 };
+
                 this.group.add(orb);
                 return orb;
             }
+
 
             getFreeBorders(){
                 const freeBorders = [];
