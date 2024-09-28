@@ -36,6 +36,9 @@ export class Game {
         if(autoStart) this.animate();
         window.addEventListener('resize', this.onWindowResize.bind(this));
     }
+    static start(){
+        return new this();
+    }
 
     render(){
         this.renderer.render(this.scene, this.camera);
@@ -300,6 +303,7 @@ class Labyrinth {
         // Create and position the light source at the same place as the orb
         const light = new THREE.PointLight(orbMaterial.color, 1, Config.CELL_SIZE * 10);
         light.castShadow = true;
+        light.userData = {mesh: orb};
         orb.add(light);
         
         // Store initial data for later use if necessary

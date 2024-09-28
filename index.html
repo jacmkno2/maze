@@ -29,19 +29,22 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
         }
         button:hover { background: #45a049; }
     </style>
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+    <!-- TODO: Move to threejs 169 (latest) -->
+    <script type="importmap">{ "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/+esm",
             "PointerLockControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/PointerLockControls.js",
             "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
             "three/examples/jsm/postprocessing/EffectComposer": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js",
             "three/examples/jsm/postprocessing/RenderPass": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/RenderPass.js",
             "three/examples/jsm/postprocessing/ShaderPass": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/ShaderPass.js",
-            "three/examples/jsm/postprocessing/UnrealBloomPass": "three/examples/jsm/postprocessing/UnrealBloomPass.js"
-        }
-    }
-    </script>
+            "three/examples/jsm/postprocessing/GodRaysPass": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/GodRaysPass.js",
+            "three/examples/jsm/postprocessing/UnrealBloomPass": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/postprocessing/UnrealBloomPass.js",
+            "three/examples/jsm/shaders/CopyShader": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/shaders/CopyShader.js",
+            "three/examples/jsm/shaders/GodRaysShader": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/shaders/GodRaysShader.js",
+            "game2": "https://jacmkno.github.io/maze/game.js",
+            "game": "./game.js"
+    } }</script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 </head>
 <body>
@@ -56,135 +59,87 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
         <p>Click to start | WASD or Arrow Keys: Move | Mouse: Look | Shift: Run | Space: Jump | ESC: Release mouse</p>
     </div>
     <script type="module">
-        import * as game from "./game.js";
+        import * as THREE from 'three';
+        import { EffectComposer, EffectPass, RenderPass, GodRaysEffect } from 'https://cdn.jsdelivr.net/npm/postprocessing@6.36.3/+esm';
+
+
+        import * as game from "game";
         class Config extends game.DefaultConfig {
-            static PLAYER_RADIUS = 1.1;
-            static TIME_STEP = 1 / 60;
+            // Custom config settings
+            static CUSTOM_SETTING = 10;
         }
         game.setConfig(Config);
+    
         class Game extends game.Game {
-            /*
             constructor() {
                 super(false);
-                this.posprocess = this.getPostprocessingRenderer();
+                //this.posprocess = this.getPostprocessingRenderer();
                 this.animate();
             }
-            render(){
-                this.posprocess();
+            render() {
+                super.render();
+                //this.posprocess();
             }
-            */
+
             getPostprocessingRenderer() {
                 const composer = new EffectComposer(this.renderer);
-                
-                const lightSources = [];
-                this.scene.traverse((object) => {
-                    if (object.isLight) {
-                        lightSources.push(object);
-                    }
-                });
-                
+
+                // Create a render pass
                 const renderPass = new RenderPass(this.scene, this.camera);
                 composer.addPass(renderPass);
 
-                // Initialize the lightScreenPositions array with MAX_LIGHTS Vector2 instances
-                const lightScreenPositions = [];
-                for (let i = 0; i < Config.MAX_LIGHTS; i++) {
-                    lightScreenPositions.push(new THREE.Vector2(0, 0));
-                }
+                // Collect light meshes from light.userData.mesh
+                const lightMeshes = [];
+                const lightMeshMap = new Map(); // Map to track lights and their meshes
 
-                const godraysPass = new ShaderPass(MultiLightGodRaysShader);
-                godraysPass.uniforms.lightScreenPositions.value = lightScreenPositions;
-                composer.addPass(godraysPass);
+                this.scene.traverse((object) => {
+                    if (object.isLight) {
+                        const lightMesh = object.userData.mesh;
+                        if (lightMesh) {
+                            lightMeshes.push(lightMesh);
+                            // Map the light to its mesh
+                            lightMeshMap.set(object, lightMesh);
+                        }
+                    }
+                });
+
+                // Create God Rays effects for each light mesh
+                const godRaysEffects = lightMeshes.map((lightMesh) => {
+                    return new GodRaysEffect(this.camera, lightMesh, {
+                        resolutionScale: 1.0,
+                        density: 0.96,
+                        decay: 0.93,
+                        weight: 0.4,
+                        samples: 30, // Adjust for performance if needed
+                        clampMax: 1.0
+                    });
+                });
+
+                // Combine the effects into one EffectPass
+                const effectPass = new EffectPass(this.camera, ...godRaysEffects);
+                effectPass.renderToScreen = true;
+                composer.addPass(effectPass);
+
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    composer.setSize(window.innerWidth, window.innerHeight);
+                });
+
+                // Update function to keep light meshes in sync
+                this.updateLightMeshes = () => {
+                    lightMeshMap.forEach((lightMesh, light) => {
+                        lightMesh.position.copy(light.position);
+                    });
+                };
 
                 return () => {
-                    const numLights = Math.min(lightSources.length, Config.MAX_LIGHTS);
-
-                    for (let i = 0; i < numLights; i++) {
-                        const light = lightSources[i];
-
-                        const vector = new THREE.Vector3();
-                        vector.setFromMatrixPosition(light.matrixWorld);
-                        vector.project(this.camera);
-
-                        lightScreenPositions[i].set(
-                            (vector.x + 1) / 2,
-                            (vector.y + 1) / 2
-                        );
-                    }
-
-                    // Set unused light positions to (0, 0)
-                    for (let i = numLights; i < Config.MAX_LIGHTS; i++) {
-                        lightScreenPositions[i].set(0, 0);
-                    }
-
-                    godraysPass.uniforms.numLights.value = numLights;
-
+                    this.updateLightMeshes(); // Update light mesh positions
                     composer.render();
                 };
             }
-
         }
-
-        // The updated MultiLightGodRaysShader
-        const MultiLightGodRaysShader = {
-            uniforms: {
-                tDiffuse: { value: null },
-                lightScreenPositions: { value: [] },
-                numLights: { value: 0 },
-                density: { value: 0.96 },
-                decay: { value: 0.93 },
-                weight: { value: 0.4 },
-                exposure: { value: 0.6 },
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                void main() {
-                    vUv = uv;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                #define MAX_LIGHTS ${Config.MAX_LIGHTS}
-                #define NUM_SAMPLES ${Config.NUM_SAMPLES}
-
-                uniform sampler2D tDiffuse;
-                uniform vec2 lightScreenPositions[MAX_LIGHTS];
-                uniform int numLights;
-                uniform float density;
-                uniform float decay;
-                uniform float weight;
-                uniform float exposure;
-
-                varying vec2 vUv;
-
-                void main() {
-                    vec4 sceneColor = texture2D(tDiffuse, vUv);
-                    vec3 godrayColor = vec3(0.0);
-
-                    for (int i = 0; i < MAX_LIGHTS; i++) {
-                        if (i >= numLights) break;
-
-                        vec2 lightPos = lightScreenPositions[i];
-
-                        vec2 deltaTextCoord = lightPos - vUv;
-                        vec2 textCoord = vUv;
-                        float illuminationDecay = 1.0;
-
-                        for (int j = 0; j < NUM_SAMPLES; j++) {
-                            textCoord += deltaTextCoord * (density / float(NUM_SAMPLES));
-                            vec4 sampleColor = texture2D(tDiffuse, textCoord);
-                            sampleColor *= illuminationDecay * weight;
-                            godrayColor += sampleColor.rgb;
-                            illuminationDecay *= decay;
-                        }
-                    }
-
-                    vec3 finalColor = sceneColor.rgb + godrayColor * exposure;
-                    gl_FragColor = vec4(finalColor, sceneColor.a);
-                }
-            `,
-        };        
-        new game.Game();
-    </script>
+    
+        Game.start();
+    </script>    
 </body>
 </html>
