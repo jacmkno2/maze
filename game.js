@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'PointerLockControls';
 
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
+import { EffectComposer, EffectPass, RenderPass, GodRaysEffect } from 'postprocessing';
 
 export class DefaultConfig {
     static CELL_SIZE = 10;
@@ -33,6 +31,8 @@ export class Game {
         this.player = new Player(this);
         this.setupEventListeners();
         this.player.resetPosition();
+        
+        this._render = this.getPostprocessingRenderer();
         if(autoStart) this.animate();
         window.addEventListener('resize', this.onWindowResize.bind(this));
     }
@@ -41,6 +41,7 @@ export class Game {
     }
 
     render(){
+        if(this._render) return this._render();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -117,6 +118,41 @@ export class Game {
             body.collisionResponse = body.lockedCollisions || this.collisionEnabled
         });
     }
+
+    getPostprocessingRenderer() {
+        const composer = new EffectComposer(this.renderer);
+
+        // Create a render pass
+        const renderPass = new RenderPass(this.scene, this.camera);
+        composer.addPass(renderPass);
+
+        // Collect light meshes from light.userData.mesh
+        const lightMeshes = [];
+
+        this.scene.traverse((object) => {
+            if (object.isLight && object?.userData?.mesh) {
+                lightMeshes.push(object.userData.mesh);
+            }
+        });
+
+        // Create God Rays effects for each light mesh
+        const godRaysEffects = lightMeshes.map((lightMesh) => {
+            return new GodRaysEffect(this.camera, lightMesh, {
+                resolutionScale: 1.0,
+                density: 0.96,
+                decay: 1,
+                weight: 1,
+                samples: 30, // Adjust for performance if needed
+                clampMax: 1.0
+            });
+        });
+
+        // Combine the effects into one EffectPass
+        const effectPass = new EffectPass(this.camera, ...godRaysEffects);
+        composer.addPass(effectPass);
+
+        return () => composer.render();
+    }    
 }
 
 class Player {
