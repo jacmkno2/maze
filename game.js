@@ -24,6 +24,7 @@ export function setConfig(C){
 
 export class Game {
     constructor(autoStart = true) {
+        this.labyrinth_seed = 0.1;
         this.collisionEnabled = true;
         this.setupScene();
         this.setupPhysics();
@@ -36,8 +37,14 @@ export class Game {
         if(autoStart) this.animate();
         window.addEventListener('resize', this.onWindowResize.bind(this));
     }
+
     static start(){
         return new this();
+    }
+
+    nextLevel(variant = 0){
+        this.labyrinth_seed += 10 + 1/(variant + 1);
+        this.labyrinth.draw();
     }
 
     render(){
@@ -234,6 +241,14 @@ class Labyrinth {
     }
 
     generate(width = Config.LABYRINTH_SIZE, height = Config.LABYRINTH_SIZE) {
+        const random = (seed=>{
+            let s = seed;
+            return function() {
+                s = Math.sin(s) * 10000;
+                return s - Math.floor(s);
+            };
+        })(this.game.labyrinth_seed)
+
         // Resulting size may be different from the requested size
         function neighbors(maze, ic, jc) {
             var final = [];
@@ -268,10 +283,10 @@ class Labyrinth {
         
         var start = [];
         do {
-            start[0] = Math.floor(Math.random() * height)
+            start[0] = Math.floor(random() * height)
         } while (start[0] % 2 == 0);
         do {
-            start[1] = Math.floor(Math.random() * width)
+            start[1] = Math.floor(random() * width)
         } while (start[1] % 2 == 0);
         
         maze[start[0]][start[1]] = 0;
@@ -291,7 +306,7 @@ class Labyrinth {
             if (openCells.length == 0)
                 break;
             
-            var choice = n[Math.floor(Math.random() * n.length)];
+            var choice = n[Math.floor(random() * n.length)];
             openCells.push(choice);
             maze[ choice[0] ][ choice[1] ] = 0;
             maze[ (choice[0] + cell[0]) / 2 ][ (choice[1] + cell[1]) / 2 ] = 0;
@@ -325,7 +340,18 @@ class Labyrinth {
     animate(delta, time){
         this.orbs.forEach(child=>{
             child.position.y = child.userData.initialY + Math.sin(time * 0.003) * 0.5;
-        })                
+        });
+        const P = this.game.player.body.position;
+        if(!this.finishing){
+            const finished = this.getEndPositions().findIndex(({x,z})=>Math.abs(P.x - x) + Math.abs(P.z - z) < Config.CELL_SIZE/5);
+            if(finished >= 0){
+                // TODO: Animate something while finishing
+                setTimeout(() => {
+                    this.finishing = false;
+                    this.game.nextLevel(finished);
+                }, 10);
+            } 
+        }
     }
 
     createOrb(pos, color, height = 0) {
