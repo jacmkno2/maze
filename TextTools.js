@@ -1,6 +1,19 @@
 import * as THREE from 'three';
 
+const WORDS = [
+    ["enigma", "danger", "crypt", "shadow", "riddle", "puzzle", "vault", "secret", "quest", "cloak"],
+    ['']
+];
 export default class Tools {
+    static async encodeNum(n, type){
+        return (n + '').split(' ').map(n=>WORDS[type][parseInt(n)]).join('-');
+    }
+    static async decodeNum(n, type){
+        const parts = n.split('-').map(n=>WORDS[type].indexOf(n));
+        if(parts.find(n=>n<0)) return NaN;
+        return parseInt(parts.join(''));
+    }
+
     static addTextToCubeFace(wall, title, text, targetPoint, rectangleWidth) {
         // Create the canvas and draw the text (same as before)
         const canvas = document.createElement('canvas');

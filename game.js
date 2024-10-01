@@ -24,11 +24,10 @@ export function setConfig(C){
 }
 
 export class Game {
-    constructor(autoStart = true) {
+    constructor(autoStart = true, [level=1, variant=0] = []) {
         this.labyrinth_seed_base = 0.1;
-        this.labyrinth_seed = this.labyrinth_seed_base;
-        this.level = 1;
         this.collisionEnabled = true;
+        this.gotoLevel(level, variant, false);
         this.setupScene();
         this.setupPhysics();
         this.labyrinth = new Labyrinth(this);
@@ -41,19 +40,34 @@ export class Game {
         window.addEventListener('resize', this.onWindowResize.bind(this));
     }
 
-    static start(){
-        return new this();
+    static async getHashLevel(){
+        const [level=1, variant=0] = await Promise.all(location.hash.substring(1).split('/').map(async (n, i)=>{
+            n = await TextTools.decodeNum(n, i);
+            return isNaN(n) ? undefined : n;
+        }));
+        return [level, variant];
+    }
+
+    static async start(){
+        return new this(true, await this.getHashLevel());
     }
 
     nextLevel(variant = 0){
         this.gotoLevel(this.level + 1, variant);
     }
 
-    gotoLevel(l, variant = 0){
+    gotoLevel(l, variant = 0, doDraw = true){
         const B = this.labyrinth_seed_base;
         this.level = l;
+        this.level_variant = variant;
         this.labyrinth_seed = B + (10 * this.level) + 1/(variant + 1);
-        this.labyrinth.draw();
+        Promise.all([l, variant].map((n, i) => TextTools.encodeNum(n, i))).then(r => {
+            const newHash = r.join('/');
+            if(newHash == location.hash.substring(1)) return;
+            location.skipHashChange = true;
+            location.hash = newHash;
+        });
+        if(doDraw) this.labyrinth.draw();
     }
 
     render(){
@@ -105,6 +119,12 @@ export class Game {
         document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
         document.getElementById('fileInput').addEventListener('change', (e) => this.labyrinth.load(e));
         document.getElementById('toggleCollisionBtn').addEventListener('click', () => this.toggleCollision());
+        window.addEventListener('hashchange', async ()=>{
+            if(!location.skipHashChange){
+                this.gotoLevel(...await Game.getHashLevel());
+            }
+            delete location.skipHashChange;
+        });        
     }
 
     animate() {
@@ -128,7 +148,6 @@ export class Game {
         this.collisionEnabled = !this.collisionEnabled;
         const btn = document.getElementById('toggleCollisionBtn');
         btn.textContent = this.collisionEnabled ? 'Disable Collision' : 'Enable Collision';
-        console.log(this.collisionEnabled, btn);
         btn.style.background = this.collisionEnabled ? '#4CAF50' : '#ff4136';
         this.world.bodies.forEach(body => {
             body.collisionResponse = body.lockedCollisions || this.collisionEnabled
@@ -510,7 +529,7 @@ class Labyrinth {
             if(this.matrix[i+x]?.[j+y]??0){
                 const wall = this.wallMeshes[[i+x, j+y]];
                 const P = this.getStartPosition();
-                TextTools.addTextToCubeFace(wall, this.game.level, 'Level', new THREE.Vector3(P.x, P.y, P.z), Config.CELL_SIZE/4);
+                TextTools.addTextToCubeFace(wall, this.game.level + '-' + this.game.level_variant, 'Level', new THREE.Vector3(P.x, P.y, P.z), Config.CELL_SIZE/4);
                 return true;
             }
         });

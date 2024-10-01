@@ -4,7 +4,8 @@
 - When user gets to the end, game restarts with a new labyrinth - DONE
 - Use seeded random numbers to ensuere everything works as levels - DONE
 - Put the level number in the wall at the begining - DONE
-- Give unique URLs to each level 
+- Give unique URLs to each level - DONE 
+- Make levels increase in dificulty in a smart way
 - Generate the written instructions for each level authomatically
 - Make the instructions the SEO content for each URL
 -----
