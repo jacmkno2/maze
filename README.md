@@ -3,8 +3,8 @@
 - Still cannot see the end marker from anywhere when jumping, you need to be somewhat close -- DONE
 - When user gets to the end, game restarts with a new labyrinth - DONE
 - Use seeded random numbers to ensuere everything works as levels - DONE
-- Put the level number in the wall at the begining
-- Give unique URLs to each level
+- Put the level number in the wall at the begining - DONE
+- Give unique URLs to each level 
 - Generate the written instructions for each level authomatically
 - Make the instructions the SEO content for each URL
 -----

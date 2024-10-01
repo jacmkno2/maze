@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'PointerLockControls';
-
 import { EffectComposer, EffectPass, RenderPass, GodRaysEffect } from 'postprocessing';
+import TextTools from './TextTools.js';
+
 
 export class DefaultConfig {
     static CELL_SIZE = 10;
@@ -24,7 +25,9 @@ export function setConfig(C){
 
 export class Game {
     constructor(autoStart = true) {
-        this.labyrinth_seed = 0.1;
+        this.labyrinth_seed_base = 0.1;
+        this.labyrinth_seed = this.labyrinth_seed_base;
+        this.level = 1;
         this.collisionEnabled = true;
         this.setupScene();
         this.setupPhysics();
@@ -43,7 +46,13 @@ export class Game {
     }
 
     nextLevel(variant = 0){
-        this.labyrinth_seed += 10 + 1/(variant + 1);
+        this.gotoLevel(this.level + 1, variant);
+    }
+
+    gotoLevel(l, variant = 0){
+        const B = this.labyrinth_seed_base;
+        this.level = l;
+        this.labyrinth_seed = B + (10 * this.level) + 1/(variant + 1);
         this.labyrinth.draw();
     }
 
@@ -180,7 +189,7 @@ class Player {
 
     resetPosition() {
         const pos = this.game.labyrinth.getStartPosition();
-        this.body.position.set(pos.x, Config.PLAYER_HEIGHT, pos.z);
+        this.body.position.set(pos.x, pos.y, pos.z);
         this.body.velocity.set(0, 0, 0);
         this.game.controls.getObject().position.copy(this.body.position);
     }
@@ -320,6 +329,7 @@ class Labyrinth {
 
     draw(matrix = null) {
         this.matrix = matrix || this.generate();
+        this.wallMeshes = new Map();
         this.freeBorders = this.getFreeBorders();
 
         if (this.group) this.game.scene.remove(this.group);
@@ -335,6 +345,7 @@ class Labyrinth {
         if(this.game.player){
             this.game.player.resetPosition();
         }
+        this.setLabel();
     }
 
     animate(delta, time){
@@ -428,6 +439,8 @@ class Labyrinth {
             wall.position.set(x, height / 2, z);
             wall.castShadow = true;
             wall.receiveShadow = true;
+
+            this.wallMeshes[from] = wall;
             this.group.add(wall);
         }else{
             body.lockedCollisions = true;
@@ -488,7 +501,19 @@ class Labyrinth {
 
     getStartPosition() {
         const [i,j] = this.freeBorders[0];
-        return { x: i * Config.CELL_SIZE + Config.CELL_SIZE / 2, z: j * Config.CELL_SIZE + Config.CELL_SIZE / 2 };
+        return { x: i * Config.CELL_SIZE + Config.CELL_SIZE / 2, y: Config.PLAYER_HEIGHT, z: j * Config.CELL_SIZE + Config.CELL_SIZE / 2 };
+    }
+
+    setLabel(){
+        const [i,j] = this.freeBorders[0];
+        [[-1, 0],[1,0],[0,-1], [0,1]].find(([x, y])=>{
+            if(this.matrix[i+x]?.[j+y]??0){
+                const wall = this.wallMeshes[[i+x, j+y]];
+                const P = this.getStartPosition();
+                TextTools.addTextToCubeFace(wall, this.game.level, 'Level', new THREE.Vector3(P.x, P.y, P.z), Config.CELL_SIZE/4);
+                return true;
+            }
+        });
     }
 
     getEndPositions(){
