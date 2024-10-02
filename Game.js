@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'PointerLockControls';
 import { EffectComposer, EffectPass, RenderPass, GodRaysEffect } from 'postprocessing';
 import TextTools from './TextTools.js';
+import Solver from './Solver.js';
 
 
 export class DefaultConfig {
@@ -391,6 +392,9 @@ class Labyrinth {
             this.game.player.resetPosition();
         }
         this.setLabel();
+        document.title = location.hash.substring(1);
+        document.querySelector('#hash').innerHTML = document.title;
+        document.querySelector('#steps').innerHTML = Solver.findSolution(this.matrix, this.freeBorders[0].toReversed(), this.freeBorders[1].toReversed(), 'N').join(', ');
     }
 
     animate(delta, time){

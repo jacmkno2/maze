@@ -6,7 +6,7 @@
 - Put the level number in the wall at the begining - DONE
 - Give unique URLs to each level - DONE 
 - Make levels increase in dificulty in a smart way - *DONE (smart?)
-- Generate the written instructions for each level authomatically
+- Generate the written instructions for each level authomatically - DONE
 - Make the instructions the SEO content for each URL
 -----
 
