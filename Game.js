@@ -35,7 +35,7 @@ export class Game {
         this.setupEventListeners();
         this.player.resetPosition();
         
-        this._render = this.getPostprocessingRenderer();
+        this.ppRenderer = this.getPostprocessingRenderer();
         if(autoStart) this.animate();
         window.addEventListener('resize', this.onWindowResize.bind(this));
     }
@@ -67,11 +67,16 @@ export class Game {
             location.skipHashChange = true;
             location.hash = newHash;
         });
-        if(doDraw) this.labyrinth.draw();
+        if(doDraw) {
+            this.labyrinth.draw();
+            if(this.ppRenderer) {
+                this.ppRenderer.reset();
+            }
+        }
     }
 
     render(){
-        if(this._render) return this._render();
+        if(this.ppRenderer) return this.ppRenderer.render();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -135,7 +140,7 @@ export class Game {
         this.player.animate(delta, time);
         this.labyrinth.animate(delta, time);
         this.render();
-        this.prevTime = performance.now();
+        this.prevTime = time;
     }
 
     onWindowResize() {
@@ -155,39 +160,54 @@ export class Game {
     }
 
     getPostprocessingRenderer() {
-        const composer = new EffectComposer(this.renderer);
-
-        // Create a render pass
-        const renderPass = new RenderPass(this.scene, this.camera);
-        composer.addPass(renderPass);
-
-        // Collect light meshes from light.userData.mesh
-        const lightMeshes = [];
-
-        this.scene.traverse((object) => {
-            if (object.isLight && object?.userData?.mesh) {
-                lightMeshes.push(object.userData.mesh);
-            }
-        });
-
-        // Create God Rays effects for each light mesh
-        const godRaysEffects = lightMeshes.map((lightMesh) => {
-            return new GodRaysEffect(this.camera, lightMesh, {
-                resolutionScale: 1.0,
-                density: 0.96,
-                decay: 1,
-                weight: 1,
-                samples: 30, // Adjust for performance if needed
-                clampMax: 1.0
+        let composer, godRaysEffects = [];
+    
+        const createGodRaysEffects = () => {
+            const lightMeshes = [];
+    
+            this.scene.traverse((object) => {
+                if (object.isLight && object?.userData?.mesh) {
+                    lightMeshes.push(object.userData.mesh);
+                }
             });
-        });
+    
+            // Create God Rays effects for each light mesh
+            return lightMeshes.map((lightMesh) => {
+                return new GodRaysEffect(this.camera, lightMesh, {
+                    resolutionScale: 1.0,
+                    density: 0.96,
+                    decay: 1,
+                    weight: 1,
+                    samples: 30,
+                    clampMax: 1.0
+                });
+            });
+        };
+    
+        const setup = () => {
+            if(composer){
+                // ChatGPT - Forced Cleanup...
+                composer.passes.forEach((pass) => {
+                    composer.removePass(pass);
+                    if (pass.dispose) pass.dispose();
+                });
+                godRaysEffects.forEach((effect) => effect.dispose());
+                composer.dispose();
+            }
 
-        // Combine the effects into one EffectPass
-        const effectPass = new EffectPass(this.camera, ...godRaysEffects);
-        composer.addPass(effectPass);
-
-        return () => composer.render();
-    }    
+            godRaysEffects = createGodRaysEffects();
+            composer = new EffectComposer(this.renderer);                            
+            composer.addPass(new RenderPass(this.scene, this.camera));
+            composer.addPass(new EffectPass(this.camera, ...godRaysEffects));
+        };
+    
+        setup(true);
+        
+        return {
+            reset: setup,
+            render: () => composer.render(), 
+        };
+    }
 }
 
 class Player {
@@ -268,15 +288,7 @@ class Labyrinth {
         this.draw();
     }
 
-    generate(width = Config.LABYRINTH_SIZE, height = Config.LABYRINTH_SIZE) {
-        const random = (seed=>{
-            let s = seed;
-            return function() {
-                s = Math.sin(s) * 10000;
-                return s - Math.floor(s);
-            };
-        })(this.game.labyrinth_seed)
-
+    generate(width, height) {
         // Resulting size may be different from the requested size
         function neighbors(maze, ic, jc) {
             var final = [];
@@ -311,10 +323,10 @@ class Labyrinth {
         
         var start = [];
         do {
-            start[0] = Math.floor(random() * height)
+            start[0] = Math.floor(this.random() * height)
         } while (start[0] % 2 == 0);
         do {
-            start[1] = Math.floor(random() * width)
+            start[1] = Math.floor(this.random() * width)
         } while (start[1] % 2 == 0);
         
         maze[start[0]][start[1]] = 0;
@@ -334,7 +346,7 @@ class Labyrinth {
             if (openCells.length == 0)
                 break;
             
-            var choice = n[Math.floor(random() * n.length)];
+            var choice = n[Math.floor(this.random() * n.length)];
             openCells.push(choice);
             maze[ choice[0] ][ choice[1] ] = 0;
             maze[ (choice[0] + cell[0]) / 2 ][ (choice[1] + cell[1]) / 2 ] = 0;
@@ -347,7 +359,21 @@ class Labyrinth {
     }
 
     draw(matrix = null) {
-        this.matrix = matrix || this.generate();
+        this.random = (seed=>{
+            let s = seed;
+            return function() {
+                s = Math.sin(s) * 10000;
+                return s - Math.floor(s);
+            };
+        })(this.game.labyrinth_seed);
+        
+        const minSide = 5;
+        const maxSide = 40;
+        const base = Math.min(minSide + this.game.level, maxSide);
+        const cols = minSide + Math.floor((base - minSide)*this.random());
+        const rows = Math.max(Math.floor(base * base/cols), minSide);
+
+        this.matrix = matrix || this.generate(cols, rows + this.game.level_variant);
         this.wallMeshes = new Map();
         this.freeBorders = this.getFreeBorders();
 
@@ -495,8 +521,8 @@ class Labyrinth {
     }
 
     createFloor() {
-        const floorSizeH = this.matrix.length * Config.CELL_SIZE;
-        const floorSizeW = (this.matrix?.[0]?.length??0) * Config.CELL_SIZE;
+        const floorSizeW = this.matrix.length * Config.CELL_SIZE;
+        const floorSizeH = (this.matrix?.[0]?.length??0) * Config.CELL_SIZE;
         const floorGeo = new THREE.PlaneGeometry(floorSizeW, floorSizeH);
         
         // Load and configure the floor texture

@@ -6,7 +6,7 @@ const WORDS = [
 ];
 export default class Tools {
     static async encodeNum(n, type){
-        return (n + '').split(' ').map(n=>WORDS[type][parseInt(n)]).join('-');
+        return (n + '').split('').map(n=>WORDS[type][parseInt(n)]).join('-');
     }
     static async decodeNum(n, type){
         const parts = n.split('-').map(n=>WORDS[type].indexOf(n));
