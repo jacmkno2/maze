@@ -1,16 +1,4 @@
-
-<!--
-https://websim.ai/c/6VtVN0iSDlDgV3BIR 
-Continue development on websim on new prompt with:
-- See if you can start a web app from this code, leave the code as is... It already works.
-
-Interesting prompts:
-1. Place holes in the floor that you must jump to get over.   Also oscillating orbs of light in the path.
-2. Now, the holes must be full of lethal lava.   The orbs must have different colors and they have to follow you very slowly. 
-
-Creating an Orb:
-https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
--->
+<!doctype html>
 <html lang="en">
 <head>
     <title>3D Labyrinth Explorer</title>
@@ -35,6 +23,8 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #d76918 repeat;
             background-size: 100% 65%;
             box-shadow: inset 0 0 0 max(50vw, 50vh) #ff000070;
+            width: 100vw;
+            height: 100vh;
         }
         canvas { display: block; }
         #menu, #instructions {
