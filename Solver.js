@@ -188,6 +188,6 @@ export default class Solver {
                 block = [];
             }
         });
-        return blocks;
+        return [blocks, instructions];
     }
 }

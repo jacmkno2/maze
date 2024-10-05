@@ -204,9 +204,27 @@ export class LabyrinthBase {
                     return `<a class="button" title="${title}" href="#${hash}">${short}<sup><${i+1}</sup></a>`;
                 })
             ));
+
+            const [blocks, instructions] = Solver.findSolution(
+                this.matrix,
+                this.freeBorders[0].toReversed(),
+                this.freeBorders[1].toReversed(),
+                this.game.labyrinth_seed,
+                'N'
+            );
+
+            const desc = document.querySelector('meta[name="description"]');
+            const W = this.matrix[0].length;
+            const H = this.matrix.length;
+            const page_title = TextTools.encodedToTitle(location.hash.substring(1));
+            const size = W*H > 40*40 * 0.2 ? (
+                W*H > 40*40 * 0.6 ? 'large' : 'medium'
+            ):'small';
+
+
+            desc.setAttribute('content', `Immersive 3D adventure through an intricate ${size} size maze of ${W}x${H} with ${instructions.length} clues based on the position of cities around the world. Can you find the exit before time runs out?`)
             
             window.base_title = window.base_title || document.title;
-            const page_title = TextTools.encodedToTitle(location.hash.substring(1));
             document.title =  page_title + " - " + window.base_title;
             document.querySelector('#level').innerHTML = [this.game.level, this.game.level_variant].join('-');
             document.querySelector('#hash').innerHTML = page_title;
@@ -214,13 +232,7 @@ export class LabyrinthBase {
             
             document.querySelector('#steps').innerHTML = `
                 <p><b>Explore Around</b>${closeLinks}</p>
-                ${ Solver.findSolution(
-                    this.matrix,
-                    this.freeBorders[0].toReversed(),
-                    this.freeBorders[1].toReversed(),
-                    this.game.labyrinth_seed,
-                    'N'
-                ).map(t=>`<p>${t}.</p>`).join('\n') }
+                ${ blocks.map(t=>`<p>${t}.</p>`).join('\n') }
                 <p><b>Go Deeper</b>${childLinks}</p>
                 ${parentLinks.length ? `<p><b>Go Up</b>${parentLinks.join('\n')}</p>` : ''}
             `.trim();
