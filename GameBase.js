@@ -31,10 +31,7 @@ export class GameBase {
     }
 
     static async getHashLevel(){
-        const [level=1, variant=0] = await Promise.all(location.hash.substring(1).split('/').map(async (n, i)=>{
-            n = await TextTools.decodeNum(n, i);
-            return isNaN(n) ? undefined : n;
-        }));
+        const [level=1, variant=0] = await TextTools.decodeNums(location.hash.substring(1));
         return [level, variant];
     }
 
@@ -52,8 +49,7 @@ export class GameBase {
         this.level = l;
         this.level_variant = variant;
         this.labyrinth_seed = B + (10 * this.level) + 1/(variant + 1);
-        this.level_info_ready = Promise.all([l, variant].map((n, i) => TextTools.encodeNum(n, i))).then(r => {
-            const newHash = r.join('/');
+        this.level_info_ready = TextTools.encodeNums([l, variant]).then(newHash => {
             if(newHash == location.hash.substring(1)) return;
             location.skipHashChange = true;
             location.hash = newHash;
@@ -182,18 +178,53 @@ export class LabyrinthBase {
     }    
 
     updateHTML(){
-        (this.game.level_info_ready || (async ()=>1)()).then(()=>{
-            document.body.setAttribute('ready',1);
-            document.title = location.hash.substring(1);
+        (this.game.level_info_ready || (async ()=>1)()).then(async ()=>{
+            const L = this.game.level;
+            const childLinks = await Promise.all(TextTools.childNums(L, 0).map(
+                ([l, i]) => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
+                    const title = TextTools.encodedToTitle(hash);
+                    const short = TextTools.encodedToTitle(hash.split('-').pop());
+                    return `<a class="button" title="${title}" href="#${hash}">${short}<sup>&gt;${i}</sup></a>`;
+                })
+            )).then(links=>links.join('\n'));
+
+            const closeLinks = await Promise.all(TextTools.closeNums(L, 0).map(
+                l => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
+                    const title = TextTools.encodedToTitle(hash);
+                    const short = TextTools.encodedToTitle(hash.split('-').pop());
+                    const active = hash == location.hash.substring(1)?'active':'';
+                    return `<a class="button ${active}" title="${title}" href="#${hash}">${short}${l!=L?`<sup>${l - L}</sup>`:''}</a>`;
+                })
+            )).then(links=>links.join('\n'));
+
+            const parentLinks = await Promise.all(TextTools.parentNums(L, 0).map(
+                (l, i) => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
+                    const title = TextTools.encodedToTitle(hash);
+                    const short = TextTools.encodedToTitle(hash.split('-').pop());
+                    return `<a class="button" title="${title}" href="#${hash}">${short}<sup><${i+1}</sup></a>`;
+                })
+            ));
+            
+            window.base_title = window.base_title || document.title;
+            const page_title = TextTools.encodedToTitle(location.hash.substring(1));
+            document.title =  page_title + " - " + window.base_title;
             document.querySelector('#level').innerHTML = [this.game.level, this.game.level_variant].join('-');
-            document.querySelector('#hash').innerHTML = document.title;
-            document.querySelector('#steps').innerHTML = Solver.findSolution(
-                this.matrix,
-                this.freeBorders[0].toReversed(),
-                this.freeBorders[1].toReversed(),
-                this.game.labyrinth_seed,
-                'N'
-            ).map(t=>`<p>${t}.</p>`).join('\n');    
+            document.querySelector('#hash').innerHTML = page_title;
+            //document.querySelector('#menu').innerHTML = closeLinks;
+            
+            document.querySelector('#steps').innerHTML = `
+                <p><b>Explore Around</b>${closeLinks}</p>
+                ${ Solver.findSolution(
+                    this.matrix,
+                    this.freeBorders[0].toReversed(),
+                    this.freeBorders[1].toReversed(),
+                    this.game.labyrinth_seed,
+                    'N'
+                ).map(t=>`<p>${t}.</p>`).join('\n') }
+                <p><b>Go Deeper</b>${childLinks}</p>
+                ${parentLinks.length ? `<p><b>Go Up</b>${parentLinks.join('\n')}</p>` : ''}
+            `.trim();
+            document.body.setAttribute('ready',1);
         })
     }
 

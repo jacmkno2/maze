@@ -1,15 +1,103 @@
 const WORDS = [
-    ["enigma", "danger", "crypt", "shadow", "riddle", "puzzle", "vault", "secret", "quest", "cloak"],
+    [
+        "enigma", "danger", "crypt", "shadow", "riddle", "puzzle", "vault", "secret", "quest", "cloak",
+        "labyrinth", "darkness", "echo", "illusion", "mystery", "maze", "phantom", "trapdoor", "code", "hidden",
+        "passage", "ghost", "curse", "key", "haunt", "dungeon", "fog", "omen", "portal", "spell",
+        "myth", "rune", "symbol", "ancient", "corridor", "cavern", "chamber", "door", "treasure", "abyss",
+        "hazard", "conundrum", "cryptic", "peril", "whisper", "veil", "unknown", "stealth", "gloom", "twilight",
+        "eerie", "specter", "apparition", "enchanted", "forbidden", "cursed", "haunted", "passageway", "tunnel", "pit",
+        "warren", "tangle", "knot", "sneak", "inferno", "paradox", "web", "realm", "underworld", "nether",
+        "oubliette", "gauntlet", "perilous", "chasm", "meander", "obscure", "labyrinthine", "serpentine", "confusion", "foggy",
+        "cryptogram", "cipher", "secretive", "clue", "twist", "narrow", "maze-like", "labyrinthian", "complex", "enigmatic"
+    ],
     ['']
 ];
 export default class Tools {
-    static async encodeNum(n, type){
-        return (n + '').split('').map(n=>WORDS[type][parseInt(n)]).join('-');
+    static async encodeNum(number, type, asNumeric=false){
+        const words = WORDS[type];
+        const base = words.length; // Base 90
+        let encoded = [];
+      
+        if (number === 0) {
+          return [words[0]];
+        }
+      
+        while (number > 0) {
+          let remainder = number % base;
+          encoded.push(asNumeric?remainder:words[remainder]);
+          number = Math.floor(number / base);
+        }
+        if(asNumeric) return encoded;
+        return encoded.reverse().join('-');
     }
     static async decodeNum(n, type){
-        const parts = n.split('-').map(n=>WORDS[type].indexOf(n));
-        if(parts.find(n=>n<0)) return NaN;
-        return parseInt(parts.join(''));
+        const words = WORDS[type];
+        const encodedArray = n.split('-');
+
+        const base = words.length;
+        let number = 0;
+      
+        for (let i = 0; i < encodedArray.length; i++) {
+          let word = encodedArray[i];
+          let index = words.indexOf(word);
+      
+          if (index === -1) {
+            throw new Error(`Invalid word in encoded array: ${word}`);
+          }
+      
+          number = number * base + index;
+        }
+      
+        return number;        
+    }
+
+    static childNums(num, type, limit=4){
+        const random = (seed=>{
+            let s = seed;
+            return function() {
+                s = Math.sin(s) * 10000;
+                return s - Math.floor(s);
+            };
+        })(num);
+        const words = WORDS[type];
+        const W = words.map((w,i)=>[i, random()]);
+        W.sort(([n, a], [m,b])=>a-b);
+
+        const n = num * words.length;
+        return W.slice(0, limit).map(([i])=>[n + i, i]).toSorted(([n, a], [m,b])=>a-b);
+    }
+
+    static parentNums(num, type){
+        const words = WORDS[type];
+        const nums = [];
+        let n = num;
+        while(n > words.length){
+            n = Math.floor(n/words.length);
+            nums.push(n);
+        }
+        return nums;
+    }    
+
+    static closeNums(num, type, limit=5){
+        const words = WORDS[type];
+        const n = Math.max(Math.ceil(num - limit / 2), 0);
+        return words.slice(0, limit).map((w,i)=>n + i);
+    }
+
+    static async encodeNums(nums){
+        return Promise.all(nums.map((n, i)=>this.encodeNum(n, i))).then(r=>r.join('/'));
+    }
+    static async decodeNums(encodedNums){
+        return Promise.all(encodedNums.split('/').map(async (s, i)=>{
+            const n = await this.decodeNum(s, i).catch(e => NaN);
+            return isNaN(n) ? undefined : n;
+        }))
+    }
+
+    static encodedToTitle(encoded){
+        return (s=>s.charAt(0).toUpperCase() + s.slice(1))(
+            encoded.replace(/-/g, ' ').replace(/\/$/,'')
+        )     
     }
 
     static addTextToCubeFace(wall, title, text, targetPoint, rectangleWidth, THREE) {

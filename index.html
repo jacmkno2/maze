@@ -39,7 +39,7 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
         canvas { display: block; }
         #menu, #instructions {
             position: absolute; background: rgba(0,0,0,0.7); color: white;
-            padding: 10px; border-radius: 5px;
+            padding: 5px; border-radius: 5px;
         }
         #menu { transition: opacity 0.5s; margin: 10px;}
         body:not([started]) #menu {opacity: 0;}
@@ -64,14 +64,28 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
             padding: 0.3em;
             border-radius: 4px;
         }
-        button {
+        button, .button {
             margin: 5px; padding: 5px 10px; background: #4CAF50; color: white;
             border: none; border-radius: 3px; cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
         }
-        button:hover { background: #45a049; }
+        .button > sup {
+            vertical-align: middle;
+            position: relative;
+            top: -0.4em;
+            left: 0.3em;
+        }
+        .button.active{
+            background: #ff4136;
+        }
+        button:hover, .button:hover { background: #45a049; }
         div#steps {
             overflow: auto;
             max-height: calc(100vh - 360px);
+        }
+        div#steps p > b:first-child{
+            display: block;
         }
     </style>
 </head>
@@ -85,8 +99,8 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
     </div>
     <div id="instructions">
         <div>
-            <h2>Level <u id="level"></u></h2>
-            <h1>Solve the Maze <u id="hash"></u></h1>
+            <h2>Level <u id="level"></u> - <i>The Maze</i></h2>
+            <h1>"<span id="hash"></span>"</h1>
             <div id="steps"></div>
             <h1 id="timing"></h1>
         </div>
@@ -94,7 +108,6 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
     </div>
     <script>
         let STARTED = false;
-
         const startGame = ()=>import("./Game.js").then(M => M.Game.start()).then(game => {
             STARTED = true;
             document.body.setAttribute('started', 1);
@@ -110,6 +123,11 @@ https://chatgpt.com/c/66ebd04b-91c8-8005-be45-a9c56f4aa07c
             document.addEventListener('click', takeLock);
         }
         window.addEventListener('load',async ()=>{
+            document.querySelector('#steps').addEventListener('click', e=>{
+                if(e.target.classList.contains('button')){
+                    event.stopImmediatePropagation()
+                }
+            })
             if(STARTED) return;
             if(localStorage.FIRST_TIME){
                 return startGame();

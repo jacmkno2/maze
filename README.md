@@ -8,6 +8,11 @@
 - Make levels increase in dificulty in a smart way - *DONE (smart?)
 - Generate the written instructions for each level authomatically - DONE
 - Make the instructions the SEO content for each URL - DONE
+- SEO: Implement soft 404 after a given maximum is reached
+- SEO: Implement no index after a maximum depth
+- SEO: Integrate webmaster console and posthug
+- Enable controls for mobile
+- Enable the use of gamepads
 -----
 
 Research About Better Lights:
