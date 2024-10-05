@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 const WORDS = [
     ["enigma", "danger", "crypt", "shadow", "riddle", "puzzle", "vault", "secret", "quest", "cloak"],
     ['']
@@ -14,7 +12,7 @@ export default class Tools {
         return parseInt(parts.join(''));
     }
 
-    static addTextToCubeFace(wall, title, text, targetPoint, rectangleWidth) {
+    static addTextToCubeFace(wall, title, text, targetPoint, rectangleWidth, THREE) {
         // Create the canvas and draw the text (same as before)
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');

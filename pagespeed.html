@@ -20,7 +20,7 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             text-align: center;
         }
-        #random-number {
+        #steps {
             font-size: 2rem;
             margin: 20px 0;
         }
@@ -37,20 +37,42 @@
             background-color: #0056b3;
         }
     </style>
+    <script type="importmap">{ "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/+esm",
+        "PointerLockControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/PointerLockControls.js",
+        "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
+        "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.21.5/+esm"
+    } }</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 </head>
 <body>
 
 <div id="random-container">
-    <h1>Random Number Generator</h1>
-    <div id="random-number">Press the button to generate a number</div>
-    <button onclick="generateRandomNumber()">Generate</button>
+    <h1 id="hash">Random Number Generator</h1>
+    <div id="steps">Press the button to generate a number</div>
 </div>
 
-<script>
-    function generateRandomNumber() {
-        const randomNumber = Math.floor(Math.random() * 100) + 1;
-        document.getElementById("random-number").innerText = randomNumber;
+<script type="module">
+    import {Game, Labyrinth} from "./Game.js";
+    class GameNR extends Game {
+        setupScene(){
+            this.labyrinth = new LabyrinthNR(this).draw();
+            return this;
+        }
+        static async start(){
+            return new this(await this.getHashLevel()).setupScene();
+        }
     }
+    class LabyrinthNR extends Labyrinth {
+        draw(matrix = null) {
+            this.setupMatrix(matrix);
+            this.updateHTML();
+            return this;
+        }
+    }
+    window.addEventListener('load',()=>{
+        GameNR.start();
+    });
 </script>
 
 </body>

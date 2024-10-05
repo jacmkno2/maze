@@ -1,3 +1,46 @@
+const INSTRUCTIONS = {
+    assertN: ()=>[
+      "Confirm alignment toward the northern horizon",
+      "Ensure orientation is steadfastly directed northward",
+      "Verify position in steadfast pursuit of the north"
+    ],
+    assertW: ()=>[
+      "Confirm alignment toward the setting sun",
+      "Ensure your gaze is firmly locked on the west",
+      "Verify that westward orientation is precise and unwavering"
+    ],
+    assertS: ()=>[
+      "Confirm alignment with the southern winds",
+      "Ensure your stance is firmly set toward the south",
+      "Verify position with eyes cast toward the southern expanse"
+    ],
+    assertE: ()=>[
+      "Confirm alignment with the dawning light of the east",
+      "Ensure orientation toward the eastern horizon is secured",
+      "Verify position with focus on the rising sun of the east"
+    ],
+    forward: n=>[
+      `Proceed forward, skipping the next ${n} opportunities`,
+      `Advance ahead, leaping past ${n} turns with grace`,
+      `Move onward, bypassing ${n} forthcoming turns`
+    ],
+    right: ()=>[
+      "Pivot sharply to the right",
+      "Execute a swift rotation to the right",
+      "Turn decisively toward your right-hand side"
+    ],
+    left: ()=>[
+      "Pivot elegantly to the left",
+      "Execute a graceful turn to the left",
+      "Veer left with precision and purpose"
+    ],
+    fullturn: ()=>[
+        "Perform a full reversal of your direction",
+        "Execute a complete turnabout",
+        "Rotate fully to face the opposite direction"        
+    ]
+  };
+
 export default class Solver {
     static bfs(maze, start, goal) {
         let width = maze[0].length;
@@ -54,7 +97,7 @@ export default class Solver {
         let instructions = [];
     
         // Add Assert Facing initialDirection
-        instructions.push(`Assert Facing ${initialDirection}`);
+        instructions.push(INSTRUCTIONS[`assert${initialDirection}`]());
     
         let facing = initialDirection;
         let turnSkips = 0;
@@ -86,7 +129,7 @@ export default class Solver {
             } else {
                 // We need to make a turn
                 // First, issue the forward instruction with turn skips
-                instructions.push(`Forward skipping ${turnSkips}`);
+                instructions.push(INSTRUCTIONS.forward(turnSkips));
                 turnSkips = 0;
     
                 // Determine the turn
@@ -95,16 +138,15 @@ export default class Solver {
                 let delta = (moveIndex - facingIndex + 4) % 4;
     
                 if (delta === 1) {
-                    instructions.push('Turn right');
+                    instructions.push(INSTRUCTIONS.right());
                     facing = rightTurn[facing];
                 } else if (delta === 3) {
-                    instructions.push('Turn left');
+                    instructions.push(INSTRUCTIONS.left());
                     facing = leftTurn[facing];
                 } else if (delta === 2) {
                     // Need to turn around
-                    instructions.push('Turn right');
                     facing = rightTurn[facing];
-                    instructions.push('Turn right');
+                    instructions.push(INSTRUCTIONS.fullturn());
                     facing = rightTurn[facing];
                 }
     
@@ -116,17 +158,36 @@ export default class Solver {
         }
     
         // After loop, if we've moved, add final forward instruction
-        instructions.push(`Forward skipping ${turnSkips}`);
+        instructions.push(INSTRUCTIONS.forward(turnSkips));
     
         return instructions;
     }
 
-    static findSolution(maze, start, goal, initialDirection = 'N') {
+    static findSolution(maze, start, goal, seed, initialDirection = 'N') {
+        const random = (seed=>{
+            let s = seed;
+            return function() {
+                s = Math.sin(s) * 10000;
+                return s - Math.floor(s);
+            };
+        })(seed);
+
         let path = this.bfs(maze, start, goal);
         if (path === null) {
             return null; // No path found
         }
         let instructions = this.generateInstructions(path, initialDirection);
-        return instructions;
+        let cnt = 0;
+        let block = [];
+        let blocks = [];
+        instructions.forEach(opts =>{
+            const idx = Math.floor(opts.length * random());
+            block.push(opts[Math.max(idx, opts.length - 1)]);
+            if(block.length > 1 && random() < 0.3){
+                blocks.push(block.join(', '));
+                block = [];
+            }
+        });
+        return blocks;
     }
 }

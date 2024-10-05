@@ -2,13 +2,11 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'PointerLockControls';
 import { EffectComposer, EffectPass, RenderPass, GodRaysEffect } from 'postprocessing';
 import TextTools from './TextTools.js';
-import Solver from './Solver.js';
+import {GameBase, LabyrinthBase, DefaultConfig, setConfig} from './GameBase.js';
 
-
-export class DefaultConfig {
+export class Config extends DefaultConfig {
     static CELL_SIZE = 10;
     static WALL_HEIGHT = 5;
-    static LABYRINTH_SIZE = 20;
     static WALK_SPEED = 150;
     static RUN_SPEED = 300;
     static JUMP_HEIGHT = 20;
@@ -18,62 +16,18 @@ export class DefaultConfig {
     static TIME_STEP = 1 / 60;
 }
 
-let Config = DefaultConfig
+const require = S => new Promise(r=>{ var s = document.createElement("script"); s.src = S; s.onload = r; document.head.appendChild(s); });
 
-export function setConfig(C){
-    Config = C;
-}
+setConfig(Config);
 
-export class Game {
-    constructor(autoStart = true, [level=1, variant=0] = []) {
-        this.labyrinth_seed_base = 0.1;
-        this.collisionEnabled = true;
-        this.gotoLevel(level, variant, false);
-        this.setupScene();
-        this.setupPhysics();
-        this.labyrinth = new Labyrinth(this);
-        this.player = new Player(this);
-        this.setupEventListeners();
-        this.player.resetPosition();
-        
-        this.ppRenderer = this.getPostprocessingRenderer();
-        if(autoStart) this.animate();
-        window.addEventListener('resize', this.onWindowResize.bind(this));
-    }
-
-    static async getHashLevel(){
-        const [level=1, variant=0] = await Promise.all(location.hash.substring(1).split('/').map(async (n, i)=>{
-            n = await TextTools.decodeNum(n, i);
-            return isNaN(n) ? undefined : n;
-        }));
-        return [level, variant];
-    }
+export class Game extends GameBase {
+    collisionEnabled = true;
 
     static async start(){
-        return new this(true, await this.getHashLevel());
-    }
-
-    nextLevel(variant = 0){
-        this.gotoLevel(this.level + 1, variant);
-    }
-
-    gotoLevel(l, variant = 0, doDraw = true){
-        const B = this.labyrinth_seed_base;
-        this.level = l;
-        this.level_variant = variant;
-        this.labyrinth_seed = B + (10 * this.level) + 1/(variant + 1);
-        Promise.all([l, variant].map((n, i) => TextTools.encodeNum(n, i))).then(r => {
-            const newHash = r.join('/');
-            if(newHash == location.hash.substring(1)) return;
-            location.skipHashChange = true;
-            location.hash = newHash;
-        });
-        if(doDraw) {
-            this.labyrinth.draw();
-            if(this.ppRenderer) {
-                this.ppRenderer.reset();
-            }
-        }
+        return Promise.all([
+            window.CANNON || require('https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js'),
+            this.getHashLevel()
+        ]).then(([c, level]) => new this(level).setupScene().animate() );
     }
 
     render(){
@@ -99,6 +53,15 @@ export class Game {
 
         this.controls = new PointerLockControls(this.camera, document.body);
         this.scene.add(this.controls.getObject());
+        
+        this.setupPhysics();
+        this.labyrinth = new Labyrinth(this).setup();
+        this.player = new Player(this);
+        this.setupEventListeners();
+        this.player.resetPosition();
+        
+        this.ppRenderer = this.getPostprocessingRenderer();
+        return this;
     }
 
     setupPhysics() {
@@ -125,12 +88,7 @@ export class Game {
         document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
         document.getElementById('fileInput').addEventListener('change', (e) => this.labyrinth.load(e));
         document.getElementById('toggleCollisionBtn').addEventListener('click', () => this.toggleCollision());
-        window.addEventListener('hashchange', async ()=>{
-            if(!location.skipHashChange){
-                this.gotoLevel(...await Game.getHashLevel());
-            }
-            delete location.skipHashChange;
-        });        
+        window.addEventListener('resize', this.onWindowResize.bind(this));
     }
 
     animate() {
@@ -142,6 +100,7 @@ export class Game {
         this.labyrinth.animate(delta, time);
         this.render();
         this.prevTime = time;
+        return this;
     }
 
     onWindowResize() {
@@ -275,108 +234,24 @@ class Player {
     }
 }
 
-class Labyrinth {
-    constructor(game) {
-        this.game = game;
-        this.orbs = [];
-        this.wallBodies = [];
-        this.cachedGeometries = {};  // Cache for geometries based on dimensions
+export class Labyrinth extends LabyrinthBase {
+    orbs = [];
+    wallBodies = [];
+    cachedGeometries = {};  // Cache for geometries based on dimensions
+    wallBodies = [];
+    wallMaterial = null;
+
+    setup(){
         this.wallMaterial = new THREE.MeshPhongMaterial({
-            map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/brick_diffuse.jpg')
+            map: new THREE.TextureLoader().load('brick_diffuse.webp')
         });
-        this.wallBodies = [];
-
         this.draw();
-    }
-
-    generate(width, height) {
-        // Resulting size may be different from the requested size
-        function neighbors(maze, ic, jc) {
-            var final = [];
-            for (var i = 0; i < 4; i++) {
-                var n = [ic, jc];
-                n[i % 2] += ((Math.floor(i / 2) * 2) || -2);
-                if (n[0] < maze.length && 
-                    n[1] < maze[0].length && 
-                    n[0] > 0 && 
-                    n[1] > 0) {
-                    
-                    if (maze[n[0]][n[1]] == 1) {
-                        final.push(n);
-                    }
-                }
-            }
-            return final;
-        }
-
-        width -= width % 2; width++;
-        height -= height % 2; height++;
-        
-        var maze = [];
-        for (var i = 0; i < height; i++) {
-            maze.push([]);
-            for (var j = 0; j < width; j++) {
-                maze[i].push(1);
-            }
-        }
-        
-        maze[0][1] = 0;
-        
-        var start = [];
-        do {
-            start[0] = Math.floor(this.random() * height)
-        } while (start[0] % 2 == 0);
-        do {
-            start[1] = Math.floor(this.random() * width)
-        } while (start[1] % 2 == 0);
-        
-        maze[start[0]][start[1]] = 0;
-        var openCells = [start];
-        
-        while (openCells.length) {
-            var cell, n;
-            openCells.push([-1, -1]);
-            do {
-                openCells.pop();
-                if (openCells.length == 0)
-                    break;
-                cell = openCells[openCells.length - 1];
-                n = neighbors(maze, cell[0], cell[1]);
-            } while (n.length == 0 && openCells.length > 0);
-            
-            if (openCells.length == 0)
-                break;
-            
-            var choice = n[Math.floor(this.random() * n.length)];
-            openCells.push(choice);
-            maze[ choice[0] ][ choice[1] ] = 0;
-            maze[ (choice[0] + cell[0]) / 2 ][ (choice[1] + cell[1]) / 2 ] = 0;
-        }
-        
-        maze[maze.length - 1][maze[0].length - 2] = 0;
-        maze[maze.length - 2][maze[0].length - 2] = 0;
-        
-        return maze;
+        return this;
     }
 
     draw(matrix = null) {
-        this.random = (seed=>{
-            let s = seed;
-            return function() {
-                s = Math.sin(s) * 10000;
-                return s - Math.floor(s);
-            };
-        })(this.game.labyrinth_seed);
-        
-        const minSide = 5;
-        const maxSide = 40;
-        const base = Math.min(minSide + this.game.level, maxSide);
-        const cols = minSide + Math.floor((base - minSide)*this.random());
-        const rows = Math.max(Math.floor(base * base/cols), minSide);
-
-        this.matrix = matrix || this.generate(cols, rows + this.game.level_variant);
+        this.setupMatrix(matrix);
         this.wallMeshes = new Map();
-        this.freeBorders = this.getFreeBorders();
 
         if (this.group) this.game.scene.remove(this.group);
         this.group = new THREE.Group();
@@ -392,9 +267,8 @@ class Labyrinth {
             this.game.player.resetPosition();
         }
         this.setLabel();
-        document.title = location.hash.substring(1);
-        document.querySelector('#hash').innerHTML = document.title;
-        document.querySelector('#steps').innerHTML = Solver.findSolution(this.matrix, this.freeBorders[0].toReversed(), this.freeBorders[1].toReversed(), 'N').join(', ');
+        this.updateHTML();
+        return this;
     }
 
     animate(delta, time){
@@ -436,21 +310,6 @@ class Labyrinth {
 
         this.group.add(orb);
         return orb;
-    }
-
-
-    getFreeBorders(){
-        const freeBorders = [];
-        for (let i = 0; i < this.matrix.length; i++) {
-            for (let j = 0; j < this.matrix[i].length; j++) {
-                if(i > 0 && j > 0 && i < this.matrix.length - 1 && j < this.matrix[i].length -1 ) continue;
-                if(![0, this.matrix.length-1].includes(i)) continue;
-                if (this.matrix[i][j] === 0) {
-                    freeBorders.push([i,j]);
-                }
-            }
-        }
-        return freeBorders;
     }
 
     // Method to cache geometries
@@ -559,7 +418,7 @@ class Labyrinth {
             if(this.matrix[i+x]?.[j+y]??0){
                 const wall = this.wallMeshes[[i+x, j+y]];
                 const P = this.getStartPosition();
-                TextTools.addTextToCubeFace(wall, this.game.level + '-' + this.game.level_variant, 'Level', new THREE.Vector3(P.x, P.y, P.z), Config.CELL_SIZE/4);
+                TextTools.addTextToCubeFace(wall, this.game.level + '-' + this.game.level_variant, 'Level', new THREE.Vector3(P.x, P.y, P.z), Config.CELL_SIZE/4, THREE);
                 return true;
             }
         });
@@ -571,23 +430,4 @@ class Labyrinth {
         });
     }
 
-    save() {
-        const blob = new Blob([JSON.stringify(this.matrix)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'labyrinth.json'; a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    load(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const matrix = JSON.parse(e.target.result);
-                this.draw(matrix);
-            };
-            reader.readAsText(file);
-        }
-    }
 }
