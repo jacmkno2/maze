@@ -1,45 +1,45 @@
 const INSTRUCTIONS = {
-    assertN: ()=>[
-      "Confirm alignment toward the northern horizon",
-      "Ensure orientation is steadfastly directed northward",
-      "Verify position in steadfast pursuit of the north"
+    assertN: () => [
+      "Stand as though you are in Sydney, with your gaze fixed toward the vast expanse of Tokyo",
+      "Imagine you're in Cairo, looking resolutely toward the Arctic Circle",
+      "Picture yourself in Buenos Aires, with your attention directed toward the bustling streets of New York"
     ],
-    assertW: ()=>[
-      "Confirm alignment toward the setting sun",
-      "Ensure your gaze is firmly locked on the west",
-      "Verify that westward orientation is precise and unwavering"
+    assertW: () => [
+      "If you are in Beijing, orient yourself toward the setting sun over the European plains",
+      "Stand in India, with your eyes turned toward the distant lands of Africa",
+      "Imagine standing in Tokyo, with your gaze reaching toward the shores of Spain"
     ],
-    assertS: ()=>[
-      "Confirm alignment with the southern winds",
-      "Ensure your stance is firmly set toward the south",
-      "Verify position with eyes cast toward the southern expanse"
+    assertS: () => [
+      "If you're in Oslo, direct your gaze toward the sands of the Sahara",
+      "Imagine yourself in Moscow, looking toward the distant peaks of South Africa",
+      "Stand as though you're in London, with your eyes fixed on the tip of Argentina"
     ],
-    assertE: ()=>[
-      "Confirm alignment with the dawning light of the east",
-      "Ensure orientation toward the eastern horizon is secured",
-      "Verify position with focus on the rising sun of the east"
+    assertE: () => [
+      "Imagine standing in San Francisco, with your gaze traveling toward the bustling streets of New York",
+      "If you're in Madrid, turn toward the rising sun over Istanbul",
+      "Picture yourself in Rio de Janeiro, with your attention directed to the islands of Singapore"
     ],
-    forward: n=>[
-      `Proceed forward, skipping the next ${n} opportunities`,
-      `Advance ahead, leaping past ${n} turns with grace`,
-      `Move onward, bypassing ${n} forthcoming turns`
+    forward: (n) => [
+      `Walk as if you're crossing from Los Angeles to New York, but skipping every major city in between for ${n} turns`,
+      `Advance like you're traveling from Paris to Moscow, bypassing ${n} stops in between`,
+      `Move forward, skipping ${n} landmarks between Sydney and Tokyo as you proceed`
     ],
-    right: ()=>[
-      "Pivot sharply to the right",
-      "Execute a swift rotation to the right",
-      "Turn decisively toward your right-hand side"
+    right: () => [
+      "If you are in Mexico facing the United States, look in the direction of Spain",
+      "Imagine you're in Rome, facing Athens, and pivot toward Paris",
+      "If standing in Cairo facing the Mediterranean, turn toward the Red Sea"
     ],
-    left: ()=>[
-      "Pivot elegantly to the left",
-      "Execute a graceful turn to the left",
-      "Veer left with precision and purpose"
+    left: () => [
+      "If you are in Australia facing Indonesia, turn toward the Pacific and New Zealand",
+      "Picture yourself in New York facing Boston, and veer left toward Los Angeles",
+      "Stand in London facing Paris, and turn your attention toward Ireland"
     ],
-    fullturn: ()=>[
-        "Perform a full reversal of your direction",
-        "Execute a complete turnabout",
-        "Rotate fully to face the opposite direction"        
+    fullturn: () => [
+      "If you're in Tokyo facing Hawaii, reverse your direction to gaze upon South Korea",
+      "Imagine standing in Berlin, looking toward London, and turning completely to face Moscow",
+      "If you’re in New Delhi facing the Himalayas, spin around to see the Arabian Sea"
     ]
-  };
+  };  
 
 export default class Solver {
     static bfs(maze, start, goal) {
