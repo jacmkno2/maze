@@ -21,30 +21,44 @@
     </p>
     <button class="btn btn-primary mt-3" onclick="start()">Start</button>
   </div>
-  <div class="question-mark" id="question-mark" onclick="restoreContent()">?</div>
+  <div id="controls">
+    <button class="bt playing" onclick="togglePlay()"></button>
+    <button class="bt" onclick="restoreContent()">?</button>
+   </div>
 
   <script>
     const _GET = k => new URL(location).searchParams.get(k);
     const lang = _GET('lang')??navigator.language;
     let current = (n=>isNaN(n)?parseInt(Math.random()*10):n)(parseInt(_GET('n')));
     const test = _GET('test')??false;
+
+    function togglePlay(){
+        document.querySelector('#controls .bt[onclick*="togglePlay"]').classList.toggle('playing');
+    }
+    function isPlaying(){
+        return document.querySelector('#controls .bt[onclick*="togglePlay"]').classList.contains('playing') && document.getElementById('main-content').style.display == 'none';
+    }
+
     function start() {
       document.getElementById('main-content').style.display = 'none';
-      document.getElementById('question-mark').style.visibility = 'visible';
+      document.getElementById('controls').style.visibility = 'visible';
       play(current);
     }
 
     function restoreContent() {
-      document.getElementById('main-content').style.display = 'block';
-      document.getElementById('question-mark').style.visibility = 'hidden';
+        document.getElementById('main-content').style.display = 'block';
+        document.getElementById('controls').style.visibility = 'hidden';
     }
 
-    function play(n){
+    async function play(n){
       if(!document.querySelector('canvas')){
         getAudioPermission();
       }
       if(document.querySelector('canvas') && current == n) return;
 
+      if(window.audioCleanup) {
+        await window.audioCleanup();
+      }
       current = n;
       const a = new URL(location);
       a.searchParams.set('lang', lang);
@@ -73,25 +87,34 @@
         border-radius: 10px;
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
       }
-      .question-mark {
+      #controls {
         position: fixed;
-        --s:0.8;
-        bottom: calc(20px * var(--s));
-        right: calc(20px * var(--s));
-        width: calc(50px * var(--s));
-        height: calc(50px * var(--s));
-        background: rgba(0, 0, 0, 0.5);
-        color: white;
-        border-radius: 5px;
         display: flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
+        --s:0.8;
+        bottom: 20px;
+        right: 20px;
         visibility: hidden;
         z-index: 9999;
-        opacity:0.5;
+        gap: calc(5px * var(--s));
       }
-      .question-mark:hover {
+
+      #controls .bt {
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        cursor: pointer;
+        opacity: 0.5;
+        padding: calc(5px * var(--s));
+        border: 0;
+        width: calc(40px * var(--s));
+        border-radius: 5px;
+      }
+      #controls .bt[onclick*="togglePlay"].playing:before {
+        content: '||'
+      }
+      #controls .bt[onclick*="togglePlay"]:not(.playing):before {
+        content: '>'
+      }
+      #controls .bt:hover {
           opacity: 1;
       }
   </style>
@@ -196,11 +219,13 @@
     }
 
     async function verifySpeechWithRecognition(text, language = "en-US", speak = true, timeout = 10000) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const spokenText = text.toString(); // Ensure text is a string
             const synthesis = window.speechSynthesis;
-            const recognition = window._recognition = window._recognition || new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.onstart = () => recognition._active = true;
+            recognition.onend = () => recognition._active = false;
+            recognition.onerror = () => recognition._active = false;
             recognition.lang = language;
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
@@ -208,14 +233,26 @@
             let timeoutHandle;
             let isResolved = false;
 
-            const cleanup = () => {
+            const cleanup = async () => {
+                console.log('cleaning up...', recognition);
                 clearTimeout(timeoutHandle);
-                recognition.abort();
-                synthesis.cancel();
-                recognition.onresult = null;
-                recognition.onerror = null;
-                recognition.onend = null;
+                delete recognition.onresult;
+                await Promise.all([new Promise(r => {
+                    if(!recognition._active) return r();
+                    recognition.onerror = recognition.onend = r;
+                    recognition.abort();
+                }), new Promise(r => {
+                    if(!synthesis.speaking) return r();
+                    synthesis.addEventListener("voiceschanged", () => {
+                        synthesis.removeEventListener("voiceschanged", handleVoicesChanged);
+                        r();
+                    });
+                    synthesis.cancel();
+                })]);
+                console.log('cleaup done...');
             };
+            await cleanup();
+            window.audioCleanup = cleanup;
 
             const primeSpeechSynthesis = () => {
                 return new Promise((resolve) => {
@@ -223,6 +260,7 @@
                     utterance.lang = language;
                     utterance.volume = 0; // Mute
                     utterance.onend = () => resolve();
+                    if(synthesis.speaking) synthesis.cancel();
                     synthesis.speak(utterance);
                 });
             };
@@ -245,12 +283,11 @@
                     if (error.error !== "interrupted") {
                         console.error("SpeechSynthesis error:", error);
                         if (!isResolved) {
-                            cleanup();
-                            resolve(false);
+                            cleanup().then(()=>resolve(false));
                         }
                     }
                 };
-
+                if(synthesis.speaking) synthesis.cancel();
                 synthesis.speak(utterance);
             };
 
@@ -259,8 +296,7 @@
                 recognition.start();
                 timeoutHandle = setTimeout(() => {
                     if (!isResolved) {
-                        cleanup();
-                        resolve(false); // Timeout reached
+                        cleanup().then(()=>resolve(false))
                     }
                 }, timeout);
             };
@@ -270,8 +306,7 @@
                 if (recognizedText === spokenText) {
                     if (!isResolved) {
                         isResolved = true;
-                        cleanup();
-                        resolve(true);
+                        cleanup().then(()=>resolve(true));
                     }
                 } else {
                     console.log(`Misheard: ${recognizedText}.`);
@@ -282,17 +317,11 @@
             };
 
             recognition.onerror = (event) => {
+                recognition._active = false;
                 console.error("SpeechRecognition error:", event.error);
                 if (!isResolved) {
                     isResolved = true;
-                    cleanup();
-                    resolve(false);
-                }
-            };
-
-            recognition.onend = () => {
-                if (!isResolved) {
-                    speakText();
+                    cleanup().then(()=>resolve(false));
                 }
             };
 
