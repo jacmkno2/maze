@@ -6,6 +6,7 @@
     <title>Glen Doman's Method - UI Shell</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="text/javascript" src="https://jacmkno.github.io/maze/speech.js"></script>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -245,10 +246,21 @@
             }
 
             drawNext() {
-                const numberOfCircles = Math.floor(Math.random() * 15) + 1;
-                this.slide = this.drawCircles(numberOfCircles);
+                this.currentNumber = Math.floor(Math.random() * 15) + 1;
+                this.slide = this.drawCircles(this.currentNumber);
                 UI.displaySlide(this.slide);
             }
+
+            async awaitContinuous() {
+                await Speech.speak(this.currentNumber.toString());
+                this.timeout = setTimeout(() => this.nextSlide(), 3000);
+            }
+
+            async awaitTest() {
+                await Speech.speak(this.currentNumber.toString());
+                const success = await Speech.listen(this.currentNumber.toString(), 'en-US', 7000);
+                this.nextSlide();
+            }            
         }
 
         UI.start(new CircleGenerator(true));

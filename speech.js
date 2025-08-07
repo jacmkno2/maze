@@ -5,16 +5,17 @@ class Speech {
     static #synthesis = window.speechSynthesis;
     static #Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    static #loadStyles(){
-        if(document.getElementById('speech-styles')) return;
-        const addStyles = ((c,D)=>{const s=D.createElement('style');s.type='text/css';s.styleSheet?s.styleSheet.cssText=c:s.appendChild(D.createTextNode(c));D.head.appendChild(s);return s;});
-        const s = addStyles(`
-            .speech-cue { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.75); color: white; padding: 12px 24px; border-radius: 9999px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 16px; z-index: 1000; display: none; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: opacity 0.3s ease, background-color 0.3s ease; }
-            .speech-cue-error { background-color: #b91c1c; }
-            .speech-cue-success { background-color: #16a34a; }
-            .speech-cue::after { content: ''; position: absolute; bottom: 0; left: 0; height: 100%; background-color: rgba(255, 255, 255, 0.2); width: 100%; transform-origin: left; transform: scaleX(var(--timeout-progress, 0)); transition: transform 0.05s linear; }
-        `, document);
-        s.setAttribute('id', 'speech-styles');
+    static {
+        if(!document.getElementById('speech-styles')){
+            const addStyles = ((c,D)=>{const s=D.createElement('style');s.type='text/css';s.styleSheet?s.styleSheet.cssText=c:s.appendChild(D.createTextNode(c));D.head.appendChild(s);return s;});
+            const s = addStyles(`
+                .speech-cue { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.75); color: white; padding: 12px 24px; border-radius: 9999px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; font-size: 16px; z-index: 1000; display: none; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: opacity 0.3s ease, background-color 0.3s ease; }
+                .speech-cue-error { background-color: #b91c1c; }
+                .speech-cue-success { background-color: #16a34a; }
+                .speech-cue::after { content: ''; position: absolute; bottom: 0; left: 0; height: 100%; background-color: rgba(255, 255, 255, 0.2); width: 100%; transform-origin: left; transform: scaleX(var(--timeout-progress, 0)); transition: transform 0.05s linear; }
+            `, document);
+            s.setAttribute('id', 'speech-styles');
+        }
     }
 
     static #createVisualCue(message, { isError = false, isSuccess = false } = {}) {
