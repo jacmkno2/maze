@@ -4,6 +4,7 @@ import TextTools from './TextTools.js';
 
 export class DefaultConfig {
     static LABYRINTH_SIZE = 20;
+    static URL_MODE = 'hash';
 }
 
 let Config = DefaultConfig
@@ -20,19 +21,21 @@ export class GameBase {
 
     constructor([level=1, variant=0] = []) {
         this.gotoLevel(level, variant, false);
-        if(location.hashHandler) window.removeEventListener('hashchange', location.hashHandler);
-        location.hashHandler = async ()=>{
-            if(!location.skipHashChange){
-                this.gotoLevel(...await this.constructor.getHashLevel());
-            }
-            delete location.skipHashChange;
-        }
-        window.addEventListener('hashchange', location.hashHandler);
+        const event = Config.URL_MODE === 'hash' ? 'hashchange' : 'popstate';
+        if(window.urlChangeHandler) window.removeEventListener(event, window.urlChangeHandler);
+        window.urlChangeHandler = async ()=>{
+            if(this.skipUrlChange){ this.skipUrlChange = false; return; }
+            this.gotoLevel(...await this.constructor.getHashLevel());
+        };
+        window.addEventListener(event, window.urlChangeHandler);
     }
 
     static async getHashLevel(){
-        const [level=1, variant=0] = await TextTools.decodeNums(location.hash.substring(1));
-        return [level, variant];
+        const source = Config.URL_MODE === 'hash'
+            ? location.hash.substring(1)
+            : location.pathname.replace(/^\/+|\/+$/g,'');
+        const [level=1, variant=0] = await TextTools.decodeNums(source || '').catch(()=>[1,0]);
+        return [level || 1, variant || 0];
     }
 
     setupScene(){
@@ -50,9 +53,16 @@ export class GameBase {
         this.level_variant = variant;
         this.labyrinth_seed = B + (10 * this.level) + 1/(variant + 1);
         this.level_info_ready = TextTools.encodeNums([l, variant]).then(newHash => {
-            if(newHash == location.hash.substring(1)) return;
-            location.skipHashChange = true;
-            location.hash = newHash;
+            const current = Config.URL_MODE === 'hash'
+                ? location.hash.substring(1)
+                : location.pathname.replace(/^\/+|\/+$/g,'');
+            if(newHash == current) return;
+            this.skipUrlChange = true;
+            if(Config.URL_MODE === 'hash'){
+                location.hash = newHash;
+            } else {
+                history.pushState({}, '', '/' + newHash);
+            }
         });
         if(doDraw) {
             this.labyrinth.draw();
@@ -180,11 +190,15 @@ export class LabyrinthBase {
     updateHTML(){
         (this.game.level_info_ready || (async ()=>1)()).then(async ()=>{
             const L = this.game.level;
+            const makeHref = h => Config.URL_MODE === 'hash' ? `#${h}` : `/${h}`;
+            const current = Config.URL_MODE === 'hash'
+                ? location.hash.substring(1)
+                : location.pathname.replace(/^\/+|\/+$/g,'');
             const childLinks = await Promise.all(TextTools.childNums(L, 0).map(
                 ([l, i]) => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
                     const title = TextTools.encodedToTitle(hash);
                     const short = TextTools.encodedToTitle(hash.split('-').pop());
-                    return `<a class="button" title="${title}" href="#${hash}">${short}<sup>&gt;${i}</sup></a>`;
+                    return `<a class="button" title="${title}" href="${makeHref(hash)}">${short}<sup>&gt;${i}</sup></a>`;
                 })
             )).then(links=>links.join('\n'));
 
@@ -192,8 +206,8 @@ export class LabyrinthBase {
                 l => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
                     const title = TextTools.encodedToTitle(hash);
                     const short = TextTools.encodedToTitle(hash.split('-').pop());
-                    const active = hash == location.hash.substring(1)?'active':'';
-                    return `<a class="button ${active}" title="${title}" href="#${hash}">${short}${l!=L?`<sup>${l - L}</sup>`:''}</a>`;
+                    const active = hash == current ? 'active' : '';
+                    return `<a class="button ${active}" title="${title}" href="${makeHref(hash)}">${short}${l!=L?`<sup>${l - L}</sup>`:''}</a>`;
                 })
             )).then(links=>links.join('\n'));
 
@@ -201,7 +215,7 @@ export class LabyrinthBase {
                 (l, i) => TextTools.encodeNums([l, this.game.level_variant]).then(hash => {
                     const title = TextTools.encodedToTitle(hash);
                     const short = TextTools.encodedToTitle(hash.split('-').pop());
-                    return `<a class="button" title="${title}" href="#${hash}">${short}<sup><${i+1}</sup></a>`;
+                    return `<a class="button" title="${title}" href="${makeHref(hash)}">${short}<sup><${i+1}</sup></a>`;
                 })
             ));
 
@@ -216,7 +230,7 @@ export class LabyrinthBase {
             const desc = document.querySelector('meta[name="description"]');
             const W = this.matrix[0].length;
             const H = this.matrix.length;
-            const page_title = TextTools.encodedToTitle(location.hash.substring(1));
+            const page_title = TextTools.encodedToTitle(current);
             const size = W*H > 40*40 * 0.2 ? (
                 W*H > 40*40 * 0.6 ? 'large' : 'medium'
             ):'small';
