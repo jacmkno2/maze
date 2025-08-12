@@ -6,14 +6,15 @@ import {GameBase, LabyrinthBase, DefaultConfig, setConfig} from './GameBase.js';
 
 export class Config extends DefaultConfig {
     static CELL_SIZE = 10;
-    static WALL_HEIGHT = 5;
+    static WALL_HEIGHT = 15;
     static WALK_SPEED = 150;
     static RUN_SPEED = 300;
-    static JUMP_HEIGHT = 20;
+    static JUMP_HEIGHT = 8;
     static GRAVITY = 30;
     static PLAYER_HEIGHT = 2;
     static PLAYER_RADIUS = 1.1;
     static TIME_STEP = 1 / 60;
+    static URL_MODE = 'hash';
 }
 
 const require = S => new Promise(r=>{ var s = document.createElement("script"); s.src = S; s.onload = r; document.head.appendChild(s); });
@@ -57,6 +58,7 @@ export class Game extends GameBase {
         this.setupPhysics();
         this.labyrinth = new Labyrinth(this).setup();
         this.player = new Player(this);
+        this.compass = new Compass(this);
         this.setupEventListeners();
         this.player.resetPosition();
         
@@ -93,11 +95,12 @@ export class Game extends GameBase {
 
     animate() {
         requestAnimationFrame(this.animate.bind(this));
-        const time = performance.now();                                
+        const time = performance.now();
         const delta = (performance.now() - (this.prevTime || time)) / 1000;
         this.world.step(Config.TIME_STEP);
         this.player.animate(delta, time);
         this.labyrinth.animate(delta, time);
+        this.compass.update();
         this.render();
         this.prevTime = time;
         return this;
@@ -231,6 +234,33 @@ class Player {
             case 'ArrowRight': case 'KeyD': this.move.right = false; break;
             case 'ShiftLeft': case 'ShiftRight': this.move.sprint = false; break;
         }
+    }
+}
+
+class Compass {
+    constructor(game){
+        this.game = game;
+        this.el = document.getElementById('compass');
+    }
+    update(){
+        if(!this.el) return;
+        const ends = this.game.labyrinth.getEndPositions();
+        if(!ends.length) return;
+        const playerPos = this.game.player.body.position;
+        let target = ends[0];
+        if(ends.length > 1){
+            target = ends.reduce((min, p)=>{
+                const dMin = (playerPos.x-min.x)**2 + (playerPos.z-min.z)**2;
+                const dP = (playerPos.x-p.x)**2 + (playerPos.z-p.z)**2;
+                return dP < dMin ? p : min;
+            }, ends[0]);
+        }
+        const dir = new THREE.Vector3(target.x - playerPos.x, 0, target.z - playerPos.z).normalize();
+        const camDir = new THREE.Vector3();
+        this.game.camera.getWorldDirection(camDir);
+        camDir.y = 0; camDir.normalize();
+        const angle = Math.atan2(dir.x, dir.z) - Math.atan2(camDir.x, camDir.z);
+        this.el.style.transform = `translate(-50%, -50%) rotate(${angle}rad)`;
     }
 }
 
