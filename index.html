@@ -25,15 +25,16 @@
             modulepreload: {script: ['./GameBase.js', './Solver.js','./TextTools.js']},
             preload:{image:['brick_diffuse.webp']}
         })=>{
-            const _e = D=>Object.entries(D).forEach(f);
-            const _c = (tag, opts={})=>{
+            const fe = (D, f) => Object.entries(D).forEach(f);
+            const cr = (tag, opts={}) => {
                 const d = document.createElement(tag);
-                _e(opts, ([a, v])=>d[a] = v);
+                fe(opts, ([a, v])=>d[a] = v);
                 document.head.appendChild(d);
             };
-            _e(PRELOAD, ([rel, I])=>_e(I, ([as, A])=>A.forEach(url=>{
-                docu
+            fe(PRELOAD, ([rel, I]) => fe(I, ([as, A])=>A.forEach(href => {
+                cr('link', {rel,as,href})
             })));
+            cr('script', {type:'importmap',textContent: JSON.stringify({imports:MAP})});
     })()</script>
 
 
@@ -44,7 +45,15 @@
     <link rel="modulepreload" href="./TextTools.js">
     <link rel="preload" href="brick_diffuse.webp" as="image">
     
-
+    <script type="module">
+        export const cosa = 5;
+        import.meta.url
+        .then(url => {console.log('URL:', url); return import(url)})
+        .then(module => {
+            window.MY_MODULE = module;
+            console.log(window.MY_MODULE.cosa); // 5
+        });
+    </script>
 
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #d76918 repeat;
