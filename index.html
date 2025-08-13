@@ -14,46 +14,12 @@
         "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.21.5/+esm"
     } }</script>
 
-    <script title="Module Maps and Preloads">((
-        MAP={
-            "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/+esm",
-            "PointerLockControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/PointerLockControls.js",
-            "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
-            "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.21.5/+esm"
-        }, 
-        PRELOAD={
-            modulepreload: {script: ['./GameBase.js', './Solver.js','./TextTools.js']},
-            preload:{image:['brick_diffuse.webp']}
-        })=>{
-            const fe = (D, f) => Object.entries(D).forEach(f);
-            const cr = (tag, opts={}) => {
-                const d = document.createElement(tag);
-                fe(opts, ([a, v])=>d[a] = v);
-                document.head.appendChild(d);
-            };
-            fe(PRELOAD, ([rel, I]) => fe(I, ([as, A])=>A.forEach(href => {
-                cr('link', {rel,as,href})
-            })));
-            cr('script', {type:'importmap',textContent: JSON.stringify({imports:MAP})});
-    })()</script>
-
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <link rel="modulepreload" href="./GameBase.js">
     <link rel="modulepreload" href="./Solver.js">
     <link rel="modulepreload" href="./TextTools.js">
     <link rel="preload" href="brick_diffuse.webp" as="image">
-    
-    <script type="module">
-        export const cosa = 5;
-        import.meta.url
-        .then(url => {console.log('URL:', url); return import(url)})
-        .then(module => {
-            window.MY_MODULE = module;
-            console.log(window.MY_MODULE.cosa); // 5
-        });
-    </script>
 
     <style>
         body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; background: #d76918 repeat;
