@@ -6,12 +6,36 @@
     <meta name="description" content="Immersive 3D adventure through intricate labyrinths, where every twist and turn challenges your wits and reflexes. Solve puzzles, avoid traps, and discover hidden secrets in this thrilling maze-solving journey. Can you find the exit before time runs out?">
     <meta charset="UTF-8">
     <!-- TODO: Move to threejs 169 (latest), npm/postprocessing and CANNON have their own issues with this change... -->
+
     <script type="importmap">{ "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/+esm",
         "PointerLockControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/PointerLockControls.js",
         "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
         "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.21.5/+esm"
     } }</script>
+
+    <script title="Module Maps and Preloads">((
+        MAP={
+            "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/+esm",
+            "PointerLockControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/PointerLockControls.js",
+            "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/controls/OrbitControls.js",
+            "postprocessing": "https://cdn.jsdelivr.net/npm/postprocessing@6.21.5/+esm"
+        }, 
+        PRELOAD={
+            modulepreload: {script: ['./GameBase.js', './Solver.js','./TextTools.js']},
+            preload:{image:['brick_diffuse.webp']}
+        })=>{
+            const _e = D=>Object.entries(D).forEach(f);
+            const _c = (tag, opts={})=>{
+                const d = document.createElement(tag);
+                _e(opts, ([a, v])=>d[a] = v);
+                document.head.appendChild(d);
+            };
+            _e(PRELOAD, ([rel, I])=>_e(I, ([as, A])=>A.forEach(url=>{
+                docu
+            })));
+    })()</script>
+
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
